@@ -1,0 +1,9 @@
+# your own / copyrighted assets - don't publish these
+chrome/JS/sfx/explosion.gif
+chrome/JS/sfx/explosion.mp3
+chrome/JS/sfx/explosion.wav
+chrome/JS/sfx/explosion.ogg
+chrome/JS/sfx/tabopen.*
+
+# runtime settings
+chrome/JS/zen-sfx-config.json
