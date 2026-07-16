@@ -21,7 +21,7 @@
 
   const G = Services.__ZenSFX || (Services.__ZenSFX = {
     init: false,
-    cfg: { enabled: true, volume: 0.5, typing: true, explode: true, tabopen: false, ignoreRepeat: true },
+    cfg: { enabled: true, volume: 0.5, typing: true, explode: true, tabopen: false, ignoreRepeat: true, finisher: true, rainbow: false },
     keyFiles: [], explodeGif: null, explodeSound: null, tabopenSound: null, dirs: {}, live: 0,
   });
 
@@ -76,7 +76,7 @@
     Object.assign(canvas.style, { position: "fixed", left: "0", top: "0", width: W + "px", height: H + "px", pointerEvents: "none", zIndex: "2147483647" });
     doc.documentElement.appendChild(canvas); const ctx = canvas.getContext("2d"); ctx.scale(dpr, dpr);
     const pal = ["#f2f2f2", "#c8c8c8", "#8a8a8a", "#5a5a5a", "#ffd24a", "#ff9a3c", "#ff5555", "#7a4a2a"], parts = [];
-    for (let i = 0; i < 110; i++) { const a = Math.random() * Math.PI * 2, s = 2 + Math.random() * 11; parts.push({ x: cx, y: cy, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 4, size: 2 + Math.random() * 6, life: 1, decay: 0.01 + Math.random() * 0.018, color: pal[(Math.random() * pal.length) | 0], rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.5 }); }
+    for (let i = 0; i < 110; i++) { const a = Math.random() * Math.PI * 2, s = 2 + Math.random() * 11; parts.push({ x: cx, y: cy, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 4, size: 2 + Math.random() * 6, life: 1, decay: 0.01 + Math.random() * 0.018, color: G.cfg.rainbow ? `hsl(${(Math.random() * 360) | 0} 100% 60%)` : pal[(Math.random() * pal.length) | 0], rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.5 }); }
     let flash = 1;
     (function frame() {
       ctx.clearRect(0, 0, W, H);
@@ -96,6 +96,80 @@
       let failed = false; img.addEventListener("error", () => { failed = true; img.remove(); particles(win, cx, cy); });
       doc.documentElement.appendChild(img); win.setTimeout(() => { if (!failed) img.remove(); }, 900);
     } else { particles(win, cx, cy); }
+  }
+
+  // closing a bunch of tabs at once -> whole screen cracks, then shatters to a fresh new-tab page
+  function finisher(win) {
+    if (!G.cfg.enabled || G.cfg.finisher === false) return false;
+    const doc = win.document, dpr = win.devicePixelRatio || 1, W = win.innerWidth, H = win.innerHeight;
+    try { win.gBrowser.selectedTab = win.gBrowser.addTrustedTab("about:newtab"); }
+    catch (e) { try { win.openTrustedLinkIn("about:newtab", "tab"); } catch (e2) {} }
+
+    const canvas = doc.createElementNS(HTML, "canvas");
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    Object.assign(canvas.style, { position: "fixed", left: "0", top: "0", width: W + "px", height: H + "px", pointerEvents: "none", zIndex: "2147483647" });
+    doc.documentElement.appendChild(canvas);
+    const ctx = canvas.getContext("2d"); ctx.scale(dpr, dpr);
+
+    const ix = W * (0.4 + Math.random() * 0.2), iy = H * (0.35 + Math.random() * 0.2);
+    const cracks = [];
+    const N = 12 + (Math.random() * 6 | 0);
+    for (let i = 0; i < N; i++) {
+      const len = Math.max(W, H) * (0.6 + Math.random() * 0.7), steps = 7 + (Math.random() * 4 | 0);
+      const pts = [[ix, iy]]; let x = ix, y = iy, a = (i / N) * Math.PI * 2 + Math.random() * 0.4;
+      for (let s = 0; s < steps; s++) { a += (Math.random() - 0.5) * 0.5; const d = len / steps; x += Math.cos(a) * d; y += Math.sin(a) * d; pts.push([x, y]); }
+      cracks.push(pts);
+    }
+
+    play(G.explodeSound || G.dirs.boomURI); shake(win);
+
+    const cols = 9, rows = 6, shards = [], total = cols * rows * 2;
+    for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < cols; gx++) {
+      const x0 = gx / cols * W, x1 = (gx + 1) / cols * W, y0 = gy / rows * H, y1 = (gy + 1) / rows * H;
+      for (const tri of [[[x0, y0], [x1, y0], [x1, y1]], [[x0, y0], [x1, y1], [x0, y1]]]) {
+        const cx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3, cy = (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
+        shards.push({
+          verts: tri.map(([vx, vy]) => [vx - cx, vy - cy]), x: cx, y: cy,
+          vx: (cx - ix) / 45 + (Math.random() - 0.5) * 2, vy: (cy - iy) / 70 - 2 + Math.random() * 2,
+          rot: 0, vr: (Math.random() - 0.5) * 0.3, alpha: 1,
+          color: G.cfg.rainbow ? `hsl(${(shards.length / total * 360) | 0} 90% 62%)` : "rgba(214,228,255,0.9)",
+        });
+      }
+    }
+
+    let f = 0; const CRACK_FRAMES = 24;
+    (function frame() {
+      ctx.clearRect(0, 0, W, H);
+      if (f < CRACK_FRAMES) {
+        const prog = Math.min(1, f / 14);
+        ctx.globalAlpha = 0.16 * Math.min(1, prog * 2);
+        ctx.fillStyle = G.cfg.rainbow ? `hsl(${(f * 12) % 360} 80% 70%)` : "#dce8ff";
+        ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+        ctx.lineWidth = 2; ctx.strokeStyle = "rgba(255,255,255,0.92)";
+        for (const pts of cracks) {
+          const upto = Math.max(2, Math.floor(pts.length * prog));
+          ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+          for (let k = 1; k < upto; k++) ctx.lineTo(pts[k][0], pts[k][1]);
+          ctx.stroke();
+        }
+        f++; win.requestAnimationFrame(frame); return;
+      }
+      let alive = false;
+      for (const s of shards) {
+        if (s.alpha <= 0) continue; alive = true;
+        s.vy += 0.6; s.x += s.vx; s.y += s.vy; s.rot += s.vr; s.alpha -= 0.014;
+        ctx.globalAlpha = Math.max(0, s.alpha); ctx.fillStyle = s.color;
+        const co = Math.cos(s.rot), si = Math.sin(s.rot);
+        ctx.beginPath();
+        for (let i = 0; i < s.verts.length; i++) {
+          const vx = s.verts[i][0] * co - s.verts[i][1] * si + s.x, vy = s.verts[i][0] * si + s.verts[i][1] * co + s.y;
+          if (i === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
+        }
+        ctx.closePath(); ctx.fill();
+      }
+      if (alive) win.requestAnimationFrame(frame); else canvas.remove();
+    })();
+    return true;
   }
 
   const ICON = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
@@ -186,9 +260,21 @@
         const box = css(doc.createElementNS(HTML, "div"), { padding: "14px 16px", minWidth: "230px", font: "13px system-ui", color: "#e8e4ec", background: "#221d2a" });
         const title = css(doc.createElementNS(HTML, "div"), { fontWeight: "700", fontSize: "16px", color: "#ffcc44", marginBottom: "8px" });
         title.textContent = "Zen SFX"; box.appendChild(title);
+        // secret: click the title 5x fast to toggle rainbow mode
+        let rbClicks = 0, rbLast = 0;
+        title.addEventListener("click", () => {
+          const n = Date.now(); rbClicks = (n - rbLast < 600) ? rbClicks + 1 : 1; rbLast = n;
+          if (rbClicks >= 5) {
+            rbClicks = 0; G.cfg.rainbow = !G.cfg.rainbow; saveCfg();
+            title.textContent = G.cfg.rainbow ? "🌈 RAINBOW ON" : "🌈 rainbow OFF";
+            play(G.explodeSound || G.dirs.boomURI, 0.4);
+            win.setTimeout(() => { title.textContent = "Zen SFX"; }, 1500);
+          }
+        });
         box.appendChild(toggle(doc, "Enabled", "enabled"));
-        box.appendChild(toggle(doc, "Typing sounds (UI)", "typing"));
+        box.appendChild(toggle(doc, "Typing sounds", "typing"));
         box.appendChild(toggle(doc, "Tab explosion", "explode"));
+        box.appendChild(toggle(doc, "Close-all crack", "finisher"));
         box.appendChild(toggle(doc, "Tab open sound", "tabopen"));
         const vrow = css(doc.createElementNS(HTML, "div"), { display: "flex", alignItems: "center", gap: "10px", margin: "9px 0" });
         const slider = doc.createElementNS(HTML, "input");
@@ -222,7 +308,19 @@
     win.addEventListener("keydown", (e) => { if (!(G.cfg.ignoreRepeat && e.repeat) && !MODS.has(e.key)) playKey(); }, true);
     try {
       if (win.gBrowser && win.gBrowser.tabContainer) {
-        win.gBrowser.tabContainer.addEventListener("TabClose", (e) => { const r = e.target.getBoundingClientRect(); if (r && r.width) explode(win, r.left + r.width / 2, r.top + r.height / 2); });
+        win.gBrowser.tabContainer.addEventListener("TabClose", (e) => {
+          const r = e.target.getBoundingClientRect();
+          const cx = r && r.width ? r.left + r.width / 2 : win.innerWidth / 2;
+          const cy = r && r.height ? r.top + r.height / 2 : 60;
+          const now = Date.now();
+          G.closeTimes = (G.closeTimes || []).filter((t) => now - t < 700);
+          G.closeTimes.push(now);
+          if (G.closeTimes.length >= 4 && (!G.finisherAt || now - G.finisherAt > 2500)) {
+            G.finisherAt = now; G.closeTimes = [];
+            if (finisher(win)) return;   // big crack instead of a little boom
+          }
+          explode(win, cx, cy);
+        });
         win.gBrowser.tabContainer.addEventListener("TabOpen", () => { if (G.cfg.tabopen) play(G.tabopenSound); });
       }
     } catch (e) {}
