@@ -29,7 +29,7 @@ if you're not comfy with that, don't install it. no hard feelings.
   slider, open the sfx folder, reload
 - everything's swappable with your own mp3s + gif, no rebuild
 
-## install
+## install (windows)
 
 **1. loader** (needs admin, one time). copy `loader/config.js` into your zen install
 folder (`C:\Program Files\Zen Browser\`), then create
@@ -46,6 +46,56 @@ pref("general.config.sandbox_enabled", false);
 one). the loader loads `chrome/JS/exploding-tabs.uc.js` by that exact name.
 
 **3.** fully quit zen, reopen, close a tab. 💥
+
+## install (linux / kubuntu)
+
+same deal, different paths. **first check how zen got installed:**
+
+```bash
+readlink -f "$(which zen)" 2>/dev/null || flatpak list | grep -i zen
+```
+
+- binary in `/opt/zen-browser`, `/usr/lib/zen`, `~/.local/share/zen` = you're good, keep going
+- **flatpak = sorry, this won't work.** flatpak's app dir is read-only so you can't drop
+  `config.js` next to the binary. reinstall zen from the official tarball if you want this.
+
+**1. find your profile** (linux uses `~/.zen`, not `%APPDATA%`):
+
+```bash
+cat ~/.zen/profiles.ini
+ls ~/.zen/
+```
+
+**2. drop the mod in** (merge if you already have a `chrome/` folder, don't nuke your themes):
+
+```bash
+PROFILE="$HOME/.zen/xxxxxxxx.Default (release)"   # <-- your actual one
+cp -r chrome "$PROFILE/"
+```
+
+**3. loader into zen's app dir** (needs sudo):
+
+```bash
+ZEN_DIR=/opt/zen-browser        # <-- whatever step 0 printed
+
+sudo cp loader/config.js "$ZEN_DIR/"
+sudo mkdir -p "$ZEN_DIR/defaults/pref"
+sudo tee "$ZEN_DIR/defaults/pref/config-prefs.js" > /dev/null <<'EOF'
+pref("general.config.filename", "config.js");
+pref("general.config.obscure_value", 0);
+pref("general.config.sandbox_enabled", false);
+EOF
+```
+
+**4.** fully quit zen (`pkill zen` if it hangs around), reopen, close a tab. 💥
+
+**your own sounds/gif:** `cp explosion.gif explosion.mp3 "$PROFILE/chrome/JS/sfx/"` then hit
+Reload in the panel.
+
+**uninstall:** `sudo rm "$ZEN_DIR/config.js" "$ZEN_DIR/defaults/pref/config-prefs.js"` and restart.
+
+heads up: zen updates on linux replace the whole app dir, so an update wipes `config.js`.
+just redo step 3 when that happens.
 
 ## make it yours
 
