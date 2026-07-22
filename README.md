@@ -1,4 +1,4 @@
-[![forthebadge](https://forthebadge.com/badges/powered-by-black-magic.svg)](https://forthebadge.com) [![forthebadge]([/badges/made-with-javascript.svg](https://forthebadge.com/badges/made-with-javascript.svg))](https://forthebadge.com)
+[![forthebadge](https://forthebadge.com/badges/powered-by-black-magic.svg)](https://forthebadge.com) [![forthebadge](https://forthebadge.com/badges/made-with-javascript.svg)](https://forthebadge.com)
 # zen sfx 💥
 
 a [zen browser](https://zen-browser.app/) mod that makes closing tabs **EXPLODE**
